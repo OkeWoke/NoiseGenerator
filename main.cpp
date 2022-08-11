@@ -21,6 +21,7 @@ struct layer
     std::unique_ptr<INoiseGen2D> noise;
     float frequency = 0.5;
     float amplitude = 0.5;
+    bool display = true;
 };
 
 void LoadTexture(const float* raw_data, GLuint* out_texture, int out_width, int out_height)
@@ -65,17 +66,12 @@ int main() {
     std::vector<layer> noise_layers;
 
     std::cout << "Noise Generator" << std::endl;
-    const unsigned int WIDTH = 500;
-    const unsigned int HEIGHT = 500;
-    const unsigned int WIN_WIDTH = 1000;
-    const unsigned int WIN_HEIGHT = 1000;
-    float floatImage[WIDTH*HEIGHT] = {};
-    unsigned char renderImage[WIDTH*HEIGHT] = {};
-
-    const unsigned int SEED = 1234;
-    const unsigned NUM_LAYERS = 10;
+    const unsigned int WIDTH = 1300;
+    const unsigned int HEIGHT = 1000;
+    const unsigned int WIN_WIDTH = 500;
+    const unsigned int WIN_HEIGHT = 500;
     const float MAX_AMPLITUDE = 1.0f;
-    const float MAX_FREQUENCY = 0.8f;
+    const float MAX_FREQUENCY = 1.0f;
 
     glfwSetErrorCallback(glfw_error_callback);
     if (!glfwInit())
@@ -127,10 +123,6 @@ int main() {
     ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 
 
-    //texture
-    GLuint myTexture = 0;
-    LoadTexture(floatImage, &myTexture, WIDTH, HEIGHT);
-
     // Main loop
     while (!glfwWindowShouldClose(window))
     {
@@ -158,8 +150,10 @@ int main() {
                 oss << "Layer: " << idx;
                 ImGui::Text(oss.str().c_str());
 
-                ImGui::SliderFloat("Frequency", &noise_layers[idx].frequency, 0.0f, MAX_FREQUENCY);            // Edit 1 float using a slider from 0.0f to 1.0f
-                ImGui::SliderFloat("Amplitude", &noise_layers[idx].amplitude, 0.0f, MAX_AMPLITUDE);
+                ImGui::SliderFloat("Frequency", &noise_layers[idx].frequency, 0.0f, MAX_FREQUENCY, "%.4f", ImGuiSliderFlags_Logarithmic);            // Edit 1 float using a slider from 0.0f to 1.0f
+                ImGui::SliderFloat("Amplitude", &noise_layers[idx].amplitude, 0.0f, MAX_AMPLITUDE, "%.4f", ImGuiSliderFlags_Logarithmic);
+                ImGui::Checkbox("Display?", &noise_layers[idx].display);
+
                 if (ImGui::Button(" - "))
                 {
                     idxToDel = idx;
@@ -176,7 +170,7 @@ int main() {
             if (ImGui::Button("+ Layer"))                            // Buttons return true when clicked (most widgets return true when edited/activated)
             {
                 layer l;
-                l.noise = std::unique_ptr<INoiseGen2D>(new ValueNoise2D());
+                l.noise = std::unique_ptr<INoiseGen2D>(new ValueNoise2D(Utility::SampleRandom<unsigned>(1234, 0, 1239213)));
                 l.amplitude = MAX_AMPLITUDE;
                 l.frequency = MAX_FREQUENCY;
                 noise_layers.push_back(std::move(l));
@@ -188,15 +182,6 @@ int main() {
             ImGui::End();
         }
 
-        {
-            ImGui::Begin("OpenGL Texture Text");
-            ImGui::Text("pointer = %p", myTexture);
-            ImGui::Text("size = %d x %d", WIDTH, HEIGHT);
-            ImGui::Image((void*)(intptr_t)myTexture, ImVec2(WIDTH, HEIGHT));
-            ImGui::End();
-        }
-
-
         // Rendering
         ImGui::Render();
         int display_w, display_h;
@@ -207,6 +192,31 @@ int main() {
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
         glfwSwapBuffers(window);
+////////////////////////////////////
+        cv::Mat image(HEIGHT, WIDTH, CV_8UC1);
+
+        for(unsigned int x = 0; x < WIDTH; x++)
+        {
+            for(unsigned int y = 0; y < HEIGHT; y++)
+            {
+                float value = 0;
+                float denominator = 0;
+                for(unsigned l = 0; l < noise_layers.size(); l++)
+                {
+                    if (noise_layers[l].display)
+                    {
+                        value+= noise_layers[l].amplitude * noise_layers[l].noise->sample(x * noise_layers[l].frequency, y * noise_layers[l].frequency);
+                        denominator+=noise_layers[l].amplitude;
+                    }
+                }
+                if (denominator != 0)
+                {
+                    image.at<unsigned char>(y, x) = static_cast<int>(255*value/denominator);
+                }
+            }
+        }
+
+        cv::imshow("Noise Generator", image);
     }
 
     // Cleanup
@@ -216,40 +226,6 @@ int main() {
 
     glfwDestroyWindow(window);
     glfwTerminate();
-
-    return 0;
-
-
-    cv::Mat image(HEIGHT, WIDTH, CV_8UC1);
-    ValueNoise2D noiser(SEED);
-
-
-    for(unsigned int x = 0; x < WIDTH; x++)
-    {
-        for(unsigned int y = 0; y < HEIGHT; y++)
-        {
-            float value = 0;
-            float frequency = 0.005f; // smaller this number, the lower the frequency and thus it maps as larger structure
-            const float max_amplitude = 10.0f;
-            float denominator = max_amplitude;
-            float amplitude = max_amplitude;
-            for(unsigned l = 0; l < NUM_LAYERS; l++)
-            {
-                value+= amplitude * noiser.sample(x * frequency, y * frequency);
-                denominator+=amplitude;
-                frequency*=2;
-                amplitude/=1.5;
-            }
-
-
-
-            image.at<unsigned char>(y, x) = static_cast<int>(255*value/denominator);
-        }
-    }
-
-    cv::imshow("Noise Generator", image);
-    cv::waitKey(0);
-    cv::imwrite("ValueNoiseMap.png", image);
 
     return 0;
 }

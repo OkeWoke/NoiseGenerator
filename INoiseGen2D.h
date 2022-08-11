@@ -5,5 +5,6 @@
 
 class INoiseGen2D
 {
+public:
     virtual float sample(float x, float y) = 0;
 };
