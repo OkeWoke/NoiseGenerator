@@ -14,7 +14,7 @@
 
 #include "INoiseGen2D.h"
 #include "ValueNoise2D.h"
-
+#include "PerlinNoise2D.h"
 
 struct layer
 {
@@ -170,7 +170,7 @@ int main() {
             if (ImGui::Button("+ Layer"))                            // Buttons return true when clicked (most widgets return true when edited/activated)
             {
                 layer l;
-                l.noise = std::unique_ptr<INoiseGen2D>(new ValueNoise2D(Utility::SampleRandom<unsigned>(1234, 0, 1239213)));
+                l.noise = std::unique_ptr<INoiseGen2D>(new PerlinNoise2D(Utility::SampleRandom<unsigned>(1234, 0, 1239213)));
                 l.amplitude = MAX_AMPLITUDE;
                 l.frequency = MAX_FREQUENCY;
                 noise_layers.push_back(std::move(l));
