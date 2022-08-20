@@ -23,8 +23,8 @@ PerlinNoise2D::PerlinNoise2D(unsigned int seed)
 }
 float PerlinNoise2D::sample(float x, float y)
 {
-    int y0 = std::floor(y);
-    int x0 = std::floor(x);
+    int y0 = (int)std::floor(y);
+    int x0 = (int)std::floor(x);
 
     float tx = x - x0;
     float ty = y - y0;
@@ -46,11 +46,6 @@ float PerlinNoise2D::sample(float x, float y)
     pe10 = Vec2{tx-1, ty};
     pe11 = Vec2{tx-1, ty-1};
 
-    pe00.normalise();
-    pe01.normalise();
-    pe10.normalise();
-    pe11.normalise();
-
     float v00 = (ve00.dot(pe00) + 1)/2;
     float v01 = (ve01.dot(pe01) + 1)/2;
     float v10 = (ve10.dot(pe10) + 1)/2;
@@ -58,10 +53,10 @@ float PerlinNoise2D::sample(float x, float y)
 
     tx = Utility::smoothstep<float>(tx);
     ty = Utility::smoothstep<float>(ty);
+
     float lx0 = Utility::lerp(v00, v10, tx);
     float lx1 = Utility::lerp(v01, v11, tx);
 
     float res = Utility::lerp(lx0, lx1, ty);
     return res;
-
 }
